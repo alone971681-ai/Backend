@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: nexdrop-api
+    env: node
+    plan: free
+    buildCommand: >
+      corepack enable &&
+      pnpm install &&
+      pnpm run typecheck:libs &&
+      pnpm --filter @workspace/api-server run build &&
+      mkdir -p bin &&
+      curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o bin/yt-dlp &&
+      chmod +x bin/yt-dlp
+    startCommand: node --enable-source-maps artifacts/api-server/dist/index.mjs
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: YT_DLP_BIN
+        value: /opt/render/project/src/bin/yt-dlp
+      - key: PORT
+        generateValue: false
+        value: "10000"

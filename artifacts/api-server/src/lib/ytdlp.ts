@@ -5,9 +5,9 @@ import fs from "fs";
 import { updateJob } from "./downloadJobs.js";
 import { logger } from "./logger.js";
 
-// Use the standalone yt-dlp binary (2026.03.17) rather than the outdated
-// pip-installed Python wrapper which breaks with newer YouTube SABR streaming.
-const YT_DLP_BIN = "/home/runner/workspace/bin/yt-dlp";
+// Use the standalone yt-dlp binary. Path is configurable via YT_DLP_BIN env var
+// so it works on Render (where the binary is downloaded during build) as well as locally.
+const YT_DLP_BIN = process.env["YT_DLP_BIN"] ?? "/home/runner/workspace/bin/yt-dlp";
 
 export type Platform = "youtube" | "unknown";
 
