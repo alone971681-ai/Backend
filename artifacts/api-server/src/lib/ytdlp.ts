@@ -7,7 +7,7 @@ import { logger } from "./logger.js";
 
 // Use the standalone yt-dlp binary. Path is configurable via YT_DLP_BIN env var
 // so it works on Render (where the binary is downloaded during build) as well as locally.
-const YT_DLP_BIN = process.env["YT_DLP_BIN"] ?? "/home/runner/workspace/bin/yt-dlp";
+const YT_DLP_BIN = process.env["YT_DLP_BIN"] ?? "yt-dlp";
 
 export type Platform = "youtube" | "unknown";
 
