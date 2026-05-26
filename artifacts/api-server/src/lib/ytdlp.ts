@@ -5,9 +5,24 @@ import fs from "fs";
 import { updateJob } from "./downloadJobs.js";
 import { logger } from "./logger.js";
 
-// Use the standalone yt-dlp binary. Path is configurable via YT_DLP_BIN env var
-// so it works on Render (where the binary is downloaded during build) as well as locally.
 const YT_DLP_BIN = process.env["YT_DLP_BIN"] ?? "yt-dlp";
+
+// Write YouTube cookies to a temp file once at startup if provided via env var
+let cookiesFile: string | null = null;
+if (process.env["YOUTUBE_COOKIES"]) {
+  try {
+    cookiesFile = path.join(os.tmpdir(), "yt-cookies.txt");
+    fs.writeFileSync(cookiesFile, process.env["YOUTUBE_COOKIES"]);
+    logger.info("YouTube cookies loaded from environment");
+  } catch (err) {
+    logger.warn({ err }, "Failed to write YouTube cookies file");
+    cookiesFile = null;
+  }
+}
+
+function getCookiesArgs(): string[] {
+  return cookiesFile ? ["--cookies", cookiesFile] : [];
+}
 
 export type Platform = "youtube" | "unknown";
 
@@ -37,7 +52,7 @@ export function detectPlatform(url: string): Platform {
 
 function runYtDlp(args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
-    const proc = spawn(YT_DLP_BIN, args, {
+    const proc = spawn(YT_DLP_BIN, [...getCookiesArgs(), ...args], {
       env: { ...process.env, PYTHONUNBUFFERED: "1" },
     });
     let stdout = "";
@@ -60,7 +75,7 @@ function runYtDlpWithProgress(
   onProgress: (pct: number) => void,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
-    const proc = spawn(YT_DLP_BIN, args, {
+    const proc = spawn(YT_DLP_BIN, [...getCookiesArgs(), ...args], {
       env: { ...process.env, PYTHONUNBUFFERED: "1" },
     });
     let stderr = "";
@@ -158,8 +173,6 @@ export async function fetchMediaInfo(url: string): Promise<MediaInfo> {
     }
   }
 
-  // Fallback: if no distinct per-tier format found (e.g. Shorts with one combined stream),
-  // show the actual available resolutions without duplicates
   if (qualities.length === 0) {
     const videoFormats = formats
       .filter(
@@ -257,7 +270,6 @@ export async function runDownload(
   if (isAudio) {
     args.push("-x", "--audio-format", "mp3", "--audio-quality", "0");
   } else {
-    // Use height-based selectors so quality is guaranteed — not just a raw format ID
     const heightMatch = label.match(/^(\d+)p$/);
     if (heightMatch) {
       const h = heightMatch[1];
@@ -284,7 +296,6 @@ export async function runDownload(
   } catch (firstErr) {
     const msg = firstErr instanceof Error ? firstErr.message : String(firstErr);
 
-    // YouTube Shorts fallback — retry with Android client and best available
     if (
       msg.includes("not available on this app") ||
       msg.includes("Requested format is not available")
